@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Shield,
   Home,
@@ -111,14 +111,14 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
 
-  // Lazy-load email once on first render
-  if (typeof window !== 'undefined' && !email) {
-    createClient()
-      .auth.getUser()
-      .then(({ data }) => {
-        if (data.user?.email) setEmail(data.user.email)
-      })
-  }
+  useEffect(() => {
+    let isMounted = true
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (isMounted && data.user?.email) setEmail(data.user.email)
+    })
+    return () => { isMounted = false }
+  }, [])
 
   async function handleSignOut() {
     const supabase = createClient()
