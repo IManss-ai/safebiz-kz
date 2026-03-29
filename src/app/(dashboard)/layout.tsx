@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
   Shield,
@@ -11,7 +11,9 @@ import {
   Calendar,
   Menu,
   X,
+  LogOut,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Главная' },
@@ -20,7 +22,15 @@ const navItems = [
   { href: '/dashboard/calendar', icon: Calendar, label: 'Календарь' },
 ]
 
-function Sidebar({ onClose }: { onClose?: () => void }) {
+function Sidebar({
+  email,
+  onClose,
+  onSignOut,
+}: {
+  email?: string
+  onClose?: () => void
+  onSignOut: () => void
+}) {
   const pathname = usePathname()
 
   return (
@@ -68,9 +78,24 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-100">
-        <p className="text-xs text-gray-400">2026 НК РК</p>
+      {/* Footer: user + sign out */}
+      <div className="px-4 py-4 border-t border-gray-100 space-y-3">
+        {email && (
+          <p
+            className="truncate text-xs text-gray-400 px-2"
+            title={email}
+          >
+            {email}
+          </p>
+        )}
+        <button
+          onClick={onSignOut}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          Выйти
+        </button>
+        <p className="text-xs text-gray-300 px-2">2026 НК РК</p>
       </div>
     </div>
   )
@@ -82,7 +107,25 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [email, setEmail] = useState<string | undefined>(undefined)
   const pathname = usePathname()
+  const router = useRouter()
+
+  // Lazy-load email once on first render
+  if (typeof window !== 'undefined' && !email) {
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        if (data.user?.email) setEmail(data.user.email)
+      })
+  }
+
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
 
   const currentPage =
     navItems.find((item) => item.href === pathname)?.label ?? 'Дашборд'
@@ -94,7 +137,7 @@ export default function DashboardLayout({
         className="hidden lg:flex lg:flex-col shrink-0"
         style={{ width: 240 }}
       >
-        <Sidebar />
+        <Sidebar email={email} onSignOut={handleSignOut} />
       </aside>
 
       {/* Mobile sidebar overlay */}
@@ -108,7 +151,11 @@ export default function DashboardLayout({
             className="absolute left-0 top-0 h-full bg-white z-50 flex flex-col"
             style={{ width: 240 }}
           >
-            <Sidebar onClose={() => setSidebarOpen(false)} />
+            <Sidebar
+              email={email}
+              onClose={() => setSidebarOpen(false)}
+              onSignOut={handleSignOut}
+            />
           </aside>
         </div>
       )}

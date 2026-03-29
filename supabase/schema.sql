@@ -31,3 +31,23 @@ CREATE TABLE transfer_risk_assessments (
   recommendations jsonb,
   assessed_at timestamptz DEFAULT now()
 );
+
+-- --------------------------------------------------------
+-- Row Level Security
+-- --------------------------------------------------------
+
+ALTER TABLE businesses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can only see own business" ON businesses
+  FOR ALL USING (auth.uid() = user_id);
+
+ALTER TABLE tax_calculations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can only see own calculations" ON tax_calculations
+  FOR ALL USING (
+    business_id IN (SELECT id FROM businesses WHERE user_id = auth.uid())
+  );
+
+ALTER TABLE transfer_risk_assessments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can only see own assessments" ON transfer_risk_assessments
+  FOR ALL USING (
+    business_id IN (SELECT id FROM businesses WHERE user_id = auth.uid())
+  );
